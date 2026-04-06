@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { notFound } from 'next/navigation';
 import {
   Play, Send, ChevronRight, Lightbulb, BookOpen,
@@ -27,6 +27,10 @@ function DifficultyBadge({ difficulty }: { difficulty: string }) {
   );
 }
 
+function getEditorValue(language: Language, answerViewed: boolean, starterCode: Record<Language, string>) {
+  return answerViewed ? starterCode[language] : '';
+}
+
 export default function ProblemWorkspacePage({ params }: { params: { id: string } }) {
   const problem = getProblemById(params.id);
   if (!problem) notFound();
@@ -35,7 +39,7 @@ export default function ProblemWorkspacePage({ params }: { params: { id: string 
   const progress = getProblemProgress(problem.id);
 
   const [language, setLanguage] = useState<Language>('python');
-  const [code, setCode] = useState(problem.starterCode.python);
+  const [code, setCode] = useState(getEditorValue('python', progress.answerViewed, problem.starterCode));
   const [result, setResult] = useState<ExecutionResult | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -47,9 +51,19 @@ export default function ProblemWorkspacePage({ params }: { params: { id: string 
   const answerUnlocked = progress.attempts >= answerUnlocksAt;
   const problemPoints = useMemo(() => getPointsForDifficulty(problem.difficulty), [problem.difficulty]);
 
+  useEffect(() => {
+    setCode((currentCode) => {
+      if (progress.answerViewed) {
+        return problem.starterCode[language];
+      }
+
+      return currentCode === problem.starterCode[language] ? '' : currentCode;
+    });
+  }, [progress.answerViewed, language, problem.starterCode]);
+
   const handleLanguageChange = (lang: Language) => {
     setLanguage(lang);
-    setCode(problem.starterCode[lang]);
+    setCode(getEditorValue(lang, progress.answerViewed, problem.starterCode));
     setResult(null);
   };
 
@@ -231,7 +245,10 @@ export default function ProblemWorkspacePage({ params }: { params: { id: string 
                         Show Answer unlock
                       </div>
                       <p className="text-sm text-brand-800">
-                        Show Answer becomes available after {answerUnlocksAt} submit attempts. If you use it, accepted submissions for this problem will give 0 points.
+                        The editor stays empty for practice. Show Answer becomes available after {answerUnlocksAt} submit attempts, and using it reveals the solution code for the current language.
+                      </p>
+                      <p className="text-sm text-brand-800">
+                        If you use Show Answer, accepted submissions for this problem will give 0 points.
                       </p>
                       <div className="flex items-center justify-between text-xs text-brand-700">
                         <span>{Math.min(progress.attempts, answerUnlocksAt)} / {answerUnlocksAt} attempts used</span>
@@ -275,7 +292,7 @@ export default function ProblemWorkspacePage({ params }: { params: { id: string 
                           if (!answerUnlocked) return;
                           revealAnswer(problem.id);
                           setCode(problem.starterCode[language]);
-                          setSubmissionNote('Show Answer used. This problem will no longer award points.');
+                          setSubmissionNote('Show Answer used. Solution code has been revealed, and this problem will no longer award points.');
                         }}
                         disabled={!answerUnlocked || isRunning || isSubmitting}
                         className="flex items-center gap-1.5 px-3 py-1.5 bg-[#374151] hover:bg-[#4b5563] disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-lg transition-colors"

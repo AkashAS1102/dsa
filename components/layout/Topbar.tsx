@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Bell, Search, Flame, ChevronDown, LogOut, User, Settings } from 'lucide-react';
-import { DEMO_USER } from '@/lib/mock-data';
+import { useDemoAppState } from '@/lib/demo-state';
 
 const PAGE_TITLES: Record<string, string> = {
   '/dashboard':   'Dashboard',
@@ -14,9 +14,11 @@ const PAGE_TITLES: Record<string, string> = {
 };
 
 export default function Topbar() {
+  const router = useRouter();
   const pathname = usePathname();
   const [showDropdown, setShowDropdown] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
+  const { summary, signOut } = useDemoAppState();
 
   const getTitle = () => {
     for (const [key, val] of Object.entries(PAGE_TITLES)) {
@@ -54,7 +56,7 @@ export default function Topbar() {
         {/* Streak */}
         <div className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 border border-orange-100 rounded-xl" id="topbar-streak">
           <Flame className="w-4 h-4 text-orange-500" />
-          <span className="text-sm font-bold text-orange-600">{DEMO_USER.streak}</span>
+          <span className="text-sm font-bold text-orange-600">{summary.streak}</span>
           <span className="text-xs text-orange-400 font-medium">day streak</span>
         </div>
 
@@ -71,13 +73,13 @@ export default function Topbar() {
             className="flex items-center gap-2 px-2 py-1.5 rounded-xl hover:bg-gray-50 border border-transparent hover:border-gray-200 transition-all"
           >
             <img
-              src={DEMO_USER.avatar}
-              alt={DEMO_USER.name}
+              src={summary.avatar}
+              alt={summary.name}
               className="w-8 h-8 rounded-lg bg-brand-100 object-cover"
             />
             <div className="hidden sm:block text-left">
-              <p className="text-sm font-semibold text-gray-800 leading-none">{DEMO_USER.name}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{DEMO_USER.points.toLocaleString('en-US')} pts</p>
+              <p className="text-sm font-semibold text-gray-800 leading-none">{summary.name}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{summary.points.toLocaleString('en-US')} pts</p>
             </div>
             <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showDropdown ? 'rotate-180' : ''}`} />
           </button>
@@ -85,8 +87,8 @@ export default function Topbar() {
           {showDropdown && (
             <div className="absolute right-0 top-full mt-2 w-52 bg-white border border-gray-100 rounded-2xl shadow-card-lg overflow-hidden z-50">
               <div className="p-3 border-b border-gray-50">
-                <p className="text-sm font-semibold text-gray-800">{DEMO_USER.name}</p>
-                <p className="text-xs text-gray-400">{DEMO_USER.email}</p>
+                <p className="text-sm font-semibold text-gray-800">{summary.name}</p>
+                <p className="text-xs text-gray-400">{summary.email}</p>
               </div>
               <div className="p-1.5">
                 <button className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-gray-50 text-sm text-gray-700 transition-colors">
@@ -96,7 +98,15 @@ export default function Topbar() {
                   <Settings className="w-4 h-4 text-gray-400" /> Settings
                 </button>
                 <div className="my-1 border-t border-gray-100" />
-                <button className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-red-50 text-sm text-red-500 transition-colors">
+                <button
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-red-50 text-sm text-red-500 transition-colors"
+                  onClick={() => {
+                    signOut();
+                    setShowDropdown(false);
+                    router.push('/auth/login');
+                    router.refresh();
+                  }}
+                >
                   <LogOut className="w-4 h-4" /> Sign out
                 </button>
               </div>

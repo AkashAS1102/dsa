@@ -2,12 +2,13 @@ import './globals.css';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'CodeForge — College Coding Platform',
+  title: 'CodeForge - College Coding Platform',
   description:
     'A production-ready competitive coding platform for college students. Practice DSA, execute code in C, C++, Java, Python, and visualize algorithms step-by-step.',
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
   keywords: ['coding', 'leetcode', 'dsa', 'algorithms', 'college', 'programming'],
   openGraph: {
-    title: 'CodeForge — College Coding Platform',
+    title: 'CodeForge - College Coding Platform',
     description: 'Practice DSA, execute real code, visualize algorithms.',
     type: 'website',
   },

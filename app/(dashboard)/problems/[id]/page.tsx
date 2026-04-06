@@ -47,8 +47,7 @@ export default function ProblemWorkspacePage({ params }: { params: { id: string 
   const [submitResult, setSubmitResult] = useState<'accepted' | 'wrong' | null>(null);
   const [submissionNote, setSubmissionNote] = useState<string | null>(null);
 
-  const answerUnlocksAt = 20;
-  const answerUnlocked = progress.attempts >= answerUnlocksAt;
+  const answerUnlocked = true;
   const problemPoints = useMemo(() => getPointsForDifficulty(problem.difficulty), [problem.difficulty]);
 
   useEffect(() => {
@@ -108,11 +107,7 @@ export default function ProblemWorkspacePage({ params }: { params: { id: string 
         setSubmissionNote('Accepted. Points were already awarded for this problem.');
       }
     } else {
-      setSubmissionNote(
-        updatedProgress.attempts >= answerUnlocksAt
-          ? 'Wrong answer. Show Answer is now unlocked for this problem.'
-          : `Wrong answer. ${answerUnlocksAt - updatedProgress.attempts} more attempts to unlock Show Answer.`
-      );
+      setSubmissionNote('Wrong answer. You can use Show Answer any time, but this problem will then give 0 points.');
     }
 
     setResult({
@@ -242,16 +237,16 @@ export default function ProblemWorkspacePage({ params }: { params: { id: string 
                     <div className="rounded-2xl border border-brand-100 bg-brand-50 p-4 space-y-2">
                       <div className="flex items-center gap-2 text-sm font-semibold text-brand-900">
                         <Eye className="w-4 h-4" />
-                        Show Answer unlock
+                        Show Answer
                       </div>
                       <p className="text-sm text-brand-800">
-                        The editor stays empty for practice. Show Answer becomes available after {answerUnlocksAt} submit attempts, and using it reveals the solution code for the current language.
+                        The editor stays empty for practice. Click Show Answer any time to reveal the solution code for the current language.
                       </p>
                       <p className="text-sm text-brand-800">
                         If you use Show Answer, accepted submissions for this problem will give 0 points.
                       </p>
                       <div className="flex items-center justify-between text-xs text-brand-700">
-                        <span>{Math.min(progress.attempts, answerUnlocksAt)} / {answerUnlocksAt} attempts used</span>
+                        <span>{progress.attempts} attempts used</span>
                         <span>{problemPoints} points available before reveal</span>
                       </div>
                     </div>
@@ -294,11 +289,11 @@ export default function ProblemWorkspacePage({ params }: { params: { id: string 
                           setCode(problem.starterCode[language]);
                           setSubmissionNote('Show Answer used. Solution code has been revealed, and this problem will no longer award points.');
                         }}
-                        disabled={!answerUnlocked || isRunning || isSubmitting}
+                        disabled={isRunning || isSubmitting}
                         className="flex items-center gap-1.5 px-3 py-1.5 bg-[#374151] hover:bg-[#4b5563] disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-lg transition-colors"
                       >
                         <Eye className="w-3.5 h-3.5" />
-                        {answerUnlocked ? 'Show Answer' : `Show Answer (${answerUnlocksAt - progress.attempts} left)`}
+                        Show Answer
                       </button>
                       <button
                         id="run-code-btn"

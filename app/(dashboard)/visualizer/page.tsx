@@ -268,7 +268,7 @@ const ALGORITHMS=[
 
 export default function VisualizerPage() {
   const [selected, setSelected] = useState(ALGORITHMS[0]);
-  const categories = [...new Set(ALGORITHMS.map(a => a.cat))];
+  const categories = Array.from(new Set(ALGORITHMS.map(a => a.cat)));
 
   return (
     <div className="max-w-6xl mx-auto space-y-5">

@@ -1,0 +1,116 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // Supabase uses pgBouncer for connection pooling — use directUrl for migrations
+  directUrl = env("DIRECT_URL")
+}
+
+// ── Enums ───────────────────────────────────────────────────
+enum Difficulty {
+  Easy
+  Medium
+  Hard
+}
+
+enum Language {
+  python
+  cpp
+  c
+  java
+}
+
+enum SubmissionStatus {
+  Accepted
+  WrongAnswer
+  TimeLimitExceeded
+  RuntimeError
+  CompilationError
+  Pending
+}
+
+// ── Models ──────────────────────────────────────────────────
+model User {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  name        String
+  avatarUrl   String?
+  points      Int      @default(0)
+  streak      Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  submissions Submission[]
+
+  @@map("users")
+}
+
+model Problem {
+  id              String     @id @default(cuid())
+  title           String
+  slug            String     @unique
+  description     String
+  difficulty      Difficulty
+  tags            String[]   // Array of tag names
+  hints           String[]
+  acceptanceRate  Float      @default(0)
+  isPublished     Boolean    @default(true)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  testCases       TestCase[]
+  submissions     Submission[]
+  visualizerState VisualizerState?
+
+  @@map("problems")
+}
+
+model TestCase {
+  id             String  @id @default(cuid())
+  problemId      String
+  input          String
+  expectedOutput String
+  isHidden       Boolean @default(false)
+  orderIndex     Int     @default(0)
+
+  problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@map("test_cases")
+}
+
+model Submission {
+  id            String           @id @default(cuid())
+  userId        String
+  problemId     String
+  code          String
+  language      Language
+  status        SubmissionStatus @default(Pending)
+  executionTime Int?             // milliseconds
+  memoryUsed    Float?           // MB
+  stdout        String?
+  stderr        String?
+  submittedAt   DateTime         @default(now())
+
+  user    User    @relation(fields: [userId], references: [id])
+  problem Problem @relation(fields: [problemId], references: [id])
+
+  @@map("submissions")
+}
+
+model VisualizerState {
+  id        String   @id @default(cuid())
+  problemId String   @unique
+  stateJson Json     // Array of VisualizerState steps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@map("visualizer_states")
+}

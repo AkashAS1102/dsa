@@ -42,6 +42,19 @@ function getPracticeTemplate(language: Language, starterCode: Record<Language, s
   return lines.slice(0, 4).join('\n');
 }
 
+function isVerifiedAnswerCode(code: string) {
+  const placeholderPatterns = [
+    'Write your solution here',
+    'add params',
+    'Your code here',
+    'UnsupportedOperationException',
+    'Implement:',
+    'throw new UnsupportedOperationException',
+  ];
+
+  return !placeholderPatterns.some((pattern) => code.includes(pattern));
+}
+
 function getEditorValue(language: Language, answerViewed: boolean, starterCode: Record<Language, string>) {
   return answerViewed ? starterCode[language] : getPracticeTemplate(language, starterCode);
 }
@@ -68,6 +81,10 @@ export default function ProblemWorkspacePage({ params }: { params: { id: string 
 
   const answerUnlocked = true;
   const problemPoints = useMemo(() => getPointsForDifficulty(problem.difficulty), [problem.difficulty]);
+  const hasVerifiedAnswer = useMemo(
+    () => isVerifiedAnswerCode(problem.starterCode[language]),
+    [language, problem.starterCode]
+  );
 
   useEffect(() => {
     setCode((currentCode) => {
@@ -276,6 +293,11 @@ export default function ProblemWorkspacePage({ params }: { params: { id: string 
                       <p className="text-sm text-brand-800">
                         The editor stays in practice mode with the opening template only. Click Show Answer any time to reveal the full solution code for the current language.
                       </p>
+                      {!hasVerifiedAnswer && (
+                        <p className="text-sm text-amber-700">
+                          This problem does not have a verified answer in the current dataset yet, so Show Answer will stay in practice mode for this language.
+                        </p>
+                      )}
                       <p className="text-sm text-brand-800">
                         If you use Show Answer, accepted submissions for this problem will give 0 points.
                       </p>
@@ -319,6 +341,10 @@ export default function ProblemWorkspacePage({ params }: { params: { id: string 
                         id="show-answer-btn"
                         onClick={() => {
                           if (!answerUnlocked) return;
+                          if (!hasVerifiedAnswer) {
+                            setSubmissionNote('A verified answer is not available for this problem in the current dataset yet.');
+                            return;
+                          }
                           revealAnswer(problem.id);
                           setCode(problem.starterCode[language]);
                           setResult(null);

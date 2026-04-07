@@ -39,14 +39,14 @@ function createDemoFallback(stdin: string) {
   const normalizedInput = stdin?.trim();
 
   return NextResponse.json({
-    stdout: normalizedInput
-      ? `Demo runner fallback active.\nInput received:\n${normalizedInput}\n\nRun/Submit UI still works, but the remote execution provider is unavailable right now.`
-      : 'Demo runner fallback active. The remote execution provider is unavailable right now.',
-    stderr: '',
-    status: 'success',
+    stdout: '',
+    stderr: normalizedInput
+      ? `Execution service unavailable.\nInput received:\n${normalizedInput}`
+      : 'Execution service unavailable.',
+    status: 'error',
     executionTime: 0,
     memory: 0,
-    message: 'Execution service unavailable on this deployment, so a demo fallback response was returned.',
+    message: 'The remote execution provider is unavailable right now, so your code was not executed.',
     fallback: true,
   });
 }

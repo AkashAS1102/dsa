@@ -27,8 +27,27 @@ function DifficultyBadge({ difficulty }: { difficulty: string }) {
   );
 }
 
+function getPracticeTemplate(language: Language, starterCode: Record<Language, string>) {
+  const source = starterCode[language] || '';
+  const lines = source.split('\n');
+
+  if (language === 'python') {
+    return lines.slice(0, 2).join('\n');
+  }
+
+  if (language === 'java') {
+    return lines.slice(0, 4).join('\n');
+  }
+
+  return lines.slice(0, 4).join('\n');
+}
+
 function getEditorValue(language: Language, answerViewed: boolean, starterCode: Record<Language, string>) {
-  return answerViewed ? starterCode[language] : '';
+  return answerViewed ? starterCode[language] : getPracticeTemplate(language, starterCode);
+}
+
+function normalizeOutput(value: string | undefined) {
+  return (value || '').replace(/\s+/g, ' ').trim();
 }
 
 export default function ProblemWorkspacePage({ params }: { params: { id: string } }) {
@@ -52,11 +71,14 @@ export default function ProblemWorkspacePage({ params }: { params: { id: string 
 
   useEffect(() => {
     setCode((currentCode) => {
+      const solution = problem.starterCode[language];
+      const practiceTemplate = getPracticeTemplate(language, problem.starterCode);
+
       if (progress.answerViewed) {
-        return problem.starterCode[language];
+        return solution;
       }
 
-      return currentCode === problem.starterCode[language] ? '' : currentCode;
+      return currentCode === solution ? practiceTemplate : currentCode;
     });
   }, [progress.answerViewed, language, problem.starterCode]);
 
@@ -64,6 +86,17 @@ export default function ProblemWorkspacePage({ params }: { params: { id: string 
     setLanguage(lang);
     setCode(getEditorValue(lang, progress.answerViewed, problem.starterCode));
     setResult(null);
+    setSubmitResult(null);
+  };
+
+  const executeCode = async () => {
+    const res = await fetch('/api/execute', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, language, stdin: problem.testCases[0]?.input || '' }),
+    });
+
+    return res.json();
   };
 
   const handleRun = async () => {
@@ -71,12 +104,7 @@ export default function ProblemWorkspacePage({ params }: { params: { id: string 
     setResult(null);
     setSubmitResult(null);
     try {
-      const res = await fetch('/api/execute', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code, language, stdin: problem.testCases[0]?.input || '' }),
-      });
-      const data = await res.json();
+      const data = await executeCode();
       setResult(data);
     } catch {
       setResult({ status: 'error', stdout: '', stderr: 'Network error - could not reach execution engine.', message: '' });
@@ -92,33 +120,39 @@ export default function ProblemWorkspacePage({ params }: { params: { id: string 
 
     const updatedProgress = incrementAttempts(problem.id);
 
-    await new Promise((resolve) => setTimeout(resolve, 1800));
+    try {
+      const data = await executeCode();
+      setResult(data);
 
-    const accepted = updatedProgress.answerViewed || Math.random() > 0.3;
-    setSubmitResult(accepted ? 'accepted' : 'wrong');
+      const expectedOutput = normalizeOutput(problem.testCases[0]?.expectedOutput);
+      const actualOutput = normalizeOutput(data.stdout);
+      const isAccepted = updatedProgress.answerViewed || (
+        data.status === 'success' &&
+        actualOutput.length > 0 &&
+        actualOutput === expectedOutput
+      );
 
-    if (accepted) {
-      const solveResult = markSolved(problem.id, problem.difficulty);
-      if (solveResult.earnedPoints) {
-        setSubmissionNote(`Accepted. You earned ${solveResult.awardedPoints} points.`);
-      } else if (updatedProgress.answerViewed) {
-        setSubmissionNote('Accepted. No points awarded because Show Answer was used.');
+      setSubmitResult(isAccepted ? 'accepted' : 'wrong');
+
+      if (isAccepted) {
+        const solveResult = markSolved(problem.id, problem.difficulty);
+        if (solveResult.earnedPoints) {
+          setSubmissionNote(`Accepted. You earned ${solveResult.awardedPoints} points.`);
+        } else if (updatedProgress.answerViewed) {
+          setSubmissionNote('Accepted. No points awarded because Show Answer was used.');
+        } else {
+          setSubmissionNote('Accepted. Points were already awarded for this problem.');
+        }
       } else {
-        setSubmissionNote('Accepted. Points were already awarded for this problem.');
+        setSubmissionNote('Wrong answer. Your code must run successfully and match the expected output.');
       }
-    } else {
-      setSubmissionNote('Wrong answer. You can use Show Answer any time, but this problem will then give 0 points.');
+    } catch {
+      setResult({ status: 'error', stdout: '', stderr: 'Network error - could not reach execution engine.', message: '' });
+      setSubmitResult('wrong');
+      setSubmissionNote('Submission failed because the execution service could not be reached.');
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setResult({
-      status: accepted ? 'success' : 'error',
-      stdout: accepted ? problem.testCases[0]?.expectedOutput || 'Correct!' : 'Wrong answer on test case 3',
-      stderr: '',
-      executionTime: Math.floor(Math.random() * 80 + 20),
-      memory: Math.random() * 5 + 10,
-    });
-
-    setIsSubmitting(false);
   };
 
   return (
@@ -240,7 +274,7 @@ export default function ProblemWorkspacePage({ params }: { params: { id: string 
                         Show Answer
                       </div>
                       <p className="text-sm text-brand-800">
-                        The editor stays empty for practice. Click Show Answer any time to reveal the solution code for the current language.
+                        The editor stays in practice mode with the opening template only. Click Show Answer any time to reveal the full solution code for the current language.
                       </p>
                       <p className="text-sm text-brand-800">
                         If you use Show Answer, accepted submissions for this problem will give 0 points.
@@ -287,7 +321,9 @@ export default function ProblemWorkspacePage({ params }: { params: { id: string 
                           if (!answerUnlocked) return;
                           revealAnswer(problem.id);
                           setCode(problem.starterCode[language]);
-                          setSubmissionNote('Show Answer used. Solution code has been revealed, and this problem will no longer award points.');
+                          setResult(null);
+                          setSubmitResult(null);
+                          setSubmissionNote('Show Answer used. Full solution code has been revealed, and this problem will no longer award points.');
                         }}
                         disabled={isRunning || isSubmitting}
                         className="flex items-center gap-1.5 px-3 py-1.5 bg-[#374151] hover:bg-[#4b5563] disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-lg transition-colors"
